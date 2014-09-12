@@ -7,14 +7,16 @@ use base qw(Mob);
 use Item::Hide;
 use Item::Venison;
 
-sub _desc { "The deer seems cute and kind ... but the sight of him makes you hungry" }
+sub desc { "The deer seems cute and kind ... but the sight of him makes you hungry" }
 
-sub _initialize {
+sub weight { return 60 }
+
+sub initialize {
     my $self = shift;
-    my $hide = Item::Hide->_new();
-    $self->_inventory_add($hide);
-    my $venison = Item::Venison->_new();
-    $self->_inventory_add($venison);
+    my $hide = Item::Hide->new();
+    $self->composition_add($hide);
+    my $venison = Item::Venison->new();
+    $self->composition_add($venison);
 }
 
 1;

@@ -6,16 +6,21 @@ use warnings;
 use base qw(Fixture);
 use Item::Branch;
 
-sub _desc {
+sub desc {
     return "What a lovely tree, one of Nature's most precious creations.\n"
-    ."\tIt seems like you could climb this tree, or use its wood to make things.";
+    ."\tYou could use its wood to make things.";
 }
 
-sub _initialize {
+sub required_action { return 'chop' }
+
+sub required_sharpness { return 15 }
+sub required_weight { return 25 }
+
+sub initialize {
     my $self = shift;
-    $self->SUPER::_initialize();
-    my $branch = Item::Branch->_new();
-    $self->_equipment_add($branch);
+    $self->SUPER::initialize();
+    my $branch = Item::Branch->new();
+    $self->visible_add($branch);
     return $self;
 }
 

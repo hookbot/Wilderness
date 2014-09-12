@@ -6,19 +6,22 @@ use warnings;
 use base qw(Item);
 use Item::Stick;
 
-sub _required_action { return 'chop' }
-sub _required_sharpness { return 10 }
-sub _required_weight { return 5 }
+sub required_action { return 'chop' }
 
-sub _is_choppable { return 1 }
+sub required_sharpness { return 10 }
+sub required_weight { return 5 }
 
-sub _initialize {
+# sub is_choppable { return 1 }
+
+sub initialize {
     my $self = shift;
-    $self->SUPER::_initialize();
-    my $stick = Item::Stick->_new();
-    $self->_equipment_add($stick);
-    $self->_equipment_add($stick);
-    $self->_equipment_add($stick);
+    $self->SUPER::initialize();
+    my $stick1 = Item::Stick->new();
+    my $stick2 = Item::Stick->new();
+    my $stick3 = Item::Stick->new();
+    $self->visible_add($stick1);
+    $self->visible_add($stick2);
+    $self->visible_add($stick3);
     return $self;
 }
 

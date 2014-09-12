@@ -13,120 +13,118 @@ use overload
     },
     '""' => sub {
         my $self = shift;
-        return $self->_name();
+        return $self->name();
     },
     'eq' => sub {
         my $a = shift;
         my $b = shift;
-        $a = $a->_name() if (ref $a && $a->can('_name'));
-        $b = $b->_name() if (ref $b && $b->can('_name'));
+        $a = $a->name() if (ref $a && $a->can('name'));
+        $b = $b->name() if (ref $b && $b->can('name'));
         return $a eq $b;
     },
     'ne' => sub {
         my $a = shift;
         my $b = shift;
-        $a = $a->_name() if (ref $a && $a->can('_name'));
-        $b = $b->_name() if (ref $b && $b->can('_name'));
+        $a = $a->name() if (ref $a && $a->can('name'));
+        $b = $b->name() if (ref $b && $b->can('name'));
         return $a ne $b;
     },
     '==' => sub {
         my $a = shift;
         my $b = shift;
-        $a = $a->_name() if (ref $a && $a->can('_name'));
-        $b = $b->_name() if (ref $b && $b->can('_name'));
+        $a = $a->name() if (ref $a && $a->can('name'));
+        $b = $b->name() if (ref $b && $b->can('name'));
         return $a eq $b;
     },
     '!=' => sub {
         my $a = shift;
         my $b = shift;
-        $a = $a->_name() if (ref $a && $a->can('_name'));
-        $b = $b->_name() if (ref $b && $b->can('_name'));
+        $a = $a->name() if (ref $a && $a->can('name'));
+        $b = $b->name() if (ref $b && $b->can('name'));
         return $a ne $b;
     },
-    # '==' => sub { return shift eq shift },
-    # '!=' => sub { return ! shift eq shift },
-    # 'ne' => sub { return ! shift eq shift },
     ;
 
-sub _new {
+sub new {
     my $package = shift;
     my $self = {@_};
     my $name = lc((split '::', $package)[-1]);
     (my $path = $package) =~ s/::/\//;
     $path .= '.pm';
     require $path;
-    $self->{'hidden'} = Container->_new();
-    $self->{'visible'} = Container->_new();
+    $self->{'inventory'} = Container->new();
+    $self->{'visible'} = Container->new();
+    $self->{'composition'} = Container->new();
     bless $self, $package;
-    $self->_initialize();
+    $self->initialize();
     $self->{'name'} ||= $name;
     return $self;
 }
 
-sub _initialize { }
+sub initialize { }
 
-sub _is_item { return }
-sub _is_character { return }
-sub _is_fixture { return }
-sub _is_player { return }
-sub _is_place { return }
-sub _is_biome { return }
-sub _is_obstruction { return }
+sub is_item { return }
+sub is_character { return }
+sub is_fixture { return }
+sub is_player { return }
+sub is_place { return }
+sub is_biome { return }
+sub is_obstruction { return }
 
 #find a way to check the 'required_action' instead of 'is_choppable'
-sub _is_choppable { return }
+sub is_choppable { return }
 
-sub _get_health { undef }
+sub get_health { undef }
 
-sub _name {
+sub name {
     my $self = shift;
     return $self->{'name'};
 }
 
-sub _required_sharpness { return 0 }
-sub _required_weight { return 0 }
-sub _sharpness { return 0 }
-sub _weight { return 0 }
+sub required_sharpness { return 0 }
+sub required_weight { return 0 }
+sub sharpness { return 0 }
+sub weight { return 0 }
 
-sub _has_requirements {
+sub has_requirements {
     my $self = shift;
-    return $self->_required_sharpness()
-        || $self->_required_weight()
+    return $self->required_sharpness()
+        || $self->required_weight()
         ;
 }
 
-sub _has_can_damage {
+sub has_can_damage {
     my $self = shift;
     my $item = shift;
-    my @equips = $self->_get_equipment();
+    my @equips = $self->get_visible();
     foreach my $equip (@equips) {
-        return $equip if $equip->_can_damage($item);
+        return $equip if $equip->can_damage($item);
     }
     warn "\tYou have nothing equipped strong enough to affect the $item\n";
     return;
 }
 
-sub _can_damage {
+sub can_damage {
     my $self = shift;
     my $victim = shift;
-    my $sharp = $self->_sharpness();
-    my $weight = $self->_weight();
-    my $req_sharp = $victim->_required_sharpness();
-    my $req_weight = $victim->_required_weight();
+    my $sharp = $self->sharpness();
+    my $weight = $self->weight();
+    my $req_sharp = $victim->required_sharpness();
+    my $req_weight = $victim->required_weight();
     return $sharp >= $req_sharp && $weight >= $req_weight;
 }
 
-# Same as is_here, but skipping characters and their equipment.
-sub _can_reach {
+# Same as is_here, but skipping characters and their visible.
+sub can_reach {
     my $self = shift;
     my $thing = shift;
-    my $place = $self->_where();
-    my @items = $place->_get_items();
-    push @items, $self->_get_inventory(), $self->_get_equipment();
+    my $place = $self->where();
+    my @items = $place->get_items();
+    push @items, $self->get_inventory(), $self->get_visible();
     foreach my $item (@items) {
-        next if $item->_is_character();
+        next if $item->is_character();
         return $item if $item eq $thing;
-        my @deep_items = $item->_get_deep_equipment();
+        my @deep_items = $item->get_deep_visible();
         foreach my $deep_item (@deep_items) {
             return $deep_item if $deep_item eq $thing;
         }
@@ -137,62 +135,68 @@ sub _can_reach {
 sub drop {
     my $self = shift;
     my $what = shift;
-    my $here = $self->_where();
-    return warn "\tYou don't have a $what\n" unless $self->_has($what);
-    $self->_inventory_remove($what) || $self->_equipment_remove($what);
-    $here->_add_item($what);
-    print "\tYou place the $what gently on the ground\n" if $self->_is_player();
+    my $here = $self->where();
+    return warn "\tYou don't have a $what\n" unless $self->has($what);
+    $self->inventory_remove($what) || $self->visible_remove($what);
+    $here->add_item($what);
+    print "\tYou place the $what gently on the ground\n" if $self->is_player();
     return $self;
 }
 
-sub _has {
+sub has {
     my $self = shift;
     my $item = shift;
-    return ( $self->_has_on($item) || $self->_has_in($item) ) ? 1 : 0;
+    return ( $self->has_in_visible($item) || $self->has_in_inventory($item) ) ? 1 : 0;
 }
 
-sub _has_on {
+sub has_in_inventory {
     my $self = shift;
     my $item = shift;
-    return $self->{'visible'}->_contains($item);
+    return $self->{'inventory'}->contains($item);
 }
 
-sub _has_in {
+sub has_in_visible {
     my $self = shift;
     my $item = shift;
-    return $self->{'hidden'}->_contains($item);
+    return $self->{'visible'}->contains($item);
 }
 
-sub _where {
+sub has_in_composition {
+    my $self = shift;
+    my $item = shift;
+    return $self->{'composition'}->contains($item);
+}
+
+sub where {
     my $self = shift;
     return $self->{'location'};
 }
 
-sub _desc {
+sub desc {
     return 'There does not appear to be anything special about it';
 }
 
-sub _describe {
+sub describe {
     my $self = shift;
-    return join ("\n\t", $self->_desc(), $self->_get_sub_description());
+    return join ("\n\t", $self->desc(), $self->get_sub_description());
 }
 
-sub _process {
+sub process {
     my $self = shift;
     return "Congratulations! You have just made a $self"
 }
 
-sub _get_ingredients { return }
-sub _get_tools { return }
+sub get_ingredients { return }
+sub get_tools { return }
 
-sub _get_sub_description {
+sub get_sub_description {
     my $self = shift;
-    my @items = $self->_get_equipment();
+    my @items = $self->get_visible();
     my @lines;
     if ( @items ) {
         foreach my $item (@items) {
             push @lines, "\tThe $self has a $item";
-            my @items_items = $item->_get_equipment();
+            my @items_items = $item->get_visible();
             foreach my $items_item (@items_items) {
                 push @lines, "\tThe $item has a $items_item";
             }
@@ -206,10 +210,10 @@ sub equip {
     my $item = shift;
     return warn "\tWhat would you like to equip?\n" unless $item;
     return warn "\tI do not know what a $item is\n" unless ref $item;
-    return warn "\tYou already have a $item equipped\n" if $self->_has_on($item);
-    return warn "\tYou do not have a $item to equip\n" unless $self->_has_in($item);
-    $self->_inventory_remove($item);
-    $self->_equipment_add($item);
+    return warn "\tYou already have a $item equipped\n" if $self->has_in_visible($item);
+    return warn "\tYou do not have a $item to equip\n" unless $self->has_in_inventory($item);
+    $self->inventory_remove($item);
+    $self->visible_add($item);
     print "\tYou take the $item out of your pack and place it in your hand\n";
     return 1;
 }
@@ -219,100 +223,82 @@ sub unequip {
     my $item = shift;
     return warn "\tWhat would you like to unequip?\n" unless $item;
     return warn "\tI do not know what a $item is\n" unless ref $item;
-    return warn "\tYou do not have a $item equipped\n" unless $self->_has_on($item);
-    $self->_equipment_remove($item);
-    $self->_inventory_add($item);
+    return warn "\tYou do not have a $item equipped\n" unless $self->has_in_visible($item);
+    $self->visible_remove($item);
+    $self->inventory_add($item);
     print "\tYou place the $item back in your pack\n";
     return 1;
 }
 
-sub _inventory_add {
+sub inventory_add { _add-> (@_, 'inventory') }
+sub visible_add { _add->(@_, 'visible') }
+sub composition_add { _add->(@_, 'composition') }
+
+sub _add {
     my $self = shift;
     my $item = shift;
-    my $added = $self->{'hidden'}->_add($item);
+    my $container = shift;
+    my $added = $self->{$container}->add($item);
     $item->{'location'} = $self if $added;
     return $added;
 }
 
-sub _inventory_remove {
+sub inventory_remove { _remove-> (@_, 'inventory') }
+sub visible_remove { _remove->(@_, 'visible') }
+sub composition_remove { _remove->(@_, 'composition') }
+
+sub _remove {
     my $self = shift;
     my $item = shift;
-    my $removed;
-    $removed = $self->{'hidden'}->_remove($item) if $self->{'hidden'};
+    my $container = shift;
+    my $removed = $self->{$container}->remove($item);
     return $removed;
 }
 
-sub _get_inventory{
+sub get_inventory { _get-> (@_, 'inventory') }
+sub get_visible { _get->(@_, 'visible') }
+sub get_composition { _get->(@_, 'composition') }
+
+sub _get {
     my $self = shift;
-    my @items = $self->{'hidden'}->_get_all();
+    my $container = shift;
+    my @items = $self->{$container}->get_all();
     return @items;
 }
 
-sub _get_deep_inventory {
+sub get_deep_visible {
     my $self = shift;
-    my @items = $self->_get_inventory();
+    my @items = $self->get_visible();
     my @all_items;
     push @all_items, @items;
     foreach my $item (@items) {
-        push @all_items, $item->_get_deep_inventory();
+        push @all_items, $item->get_deep_visible();
     }
     return @all_items;
 }
 
-sub _equipment_add {
-    my $self = shift;
-    my $item = shift;
-    my $added = $self->{'visible'}->_add($item);
-    $item->{'location'} = $self if $added;
-    return $added;
-}
-
-sub _equipment_remove {
-    my $self = shift;
-    my $item = shift;
-    my $removed = $self->{'visible'}->_remove($item);
-    return $removed;
-}
-
-sub _get_equipment{
-    my $self = shift;
-    my @items = $self->{'visible'}->_get_all();
-    return @items;
-}
-
-sub _get_deep_equipment {
-    my $self = shift;
-    my @items = $self->_get_equipment();
-    my @all_items;
-    push @all_items, @items;
-    foreach my $item (@items) {
-        push @all_items, $item->_get_deep_equipment();
-    }
-    return @all_items;
-}
-
-sub _visible_containers {
+sub visible_containers {
     my $self = shift;
     my $find = shift;
     return $self if $find == $self;
-    my @items = $self->_get_equipment();
+    my @items = $self->get_visible();
     foreach my $item (@items) {
-        my @deep_items = $item->_visible_containers($find);
+        my @deep_items = $item->visible_containers($find);
         return (@deep_items, $self) if @deep_items;
     }
     return;
 }
 
-sub _has_on_ground {
+sub has_on_ground {
     my $place = shift;
     my $item = shift;
-    my @containers = $place->_visible_containers($item);
+    my @containers = $place->visible_containers($item);
     return $containers[1] == $place;
 }
 
-sub _get_all {
+sub get_all {
     my $self = shift;
-    my @possessions = ( $self->_get_equipment(), $self->_get_inventory() );
+    my @possessions = ( $self->get_visible(), $self->get_inventory() );
     return @possessions;
 }
 
